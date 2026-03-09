@@ -15,7 +15,8 @@ export async function POST(req) {
       headers: {
         "Content-Type": "application/json",
         "x-api-key": process.env.ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01"
+        "anthropic-version": "2023-06-01",
+        "anthropic-beta": "web-search-2025-03-05"
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
@@ -26,12 +27,13 @@ export async function POST(req) {
       })
     });
     const data = await response.json();
+    console.log("API response:", JSON.stringify(data).slice(0, 500));
     if (data.error) return Response.json({ error: data.error.message }, { status: 500 });
     const text = data.content?.filter(b => b.type === "text").map(b => b.text).join("") || "";
     const clean = text.replace(/```json|```/g, "").trim();
     const start = clean.indexOf("{");
     const end = clean.lastIndexOf("}");
-    if (start === -1) return Response.json({ error: "No JSON found" }, { status: 500 });
+    if (start === -1) return Response.json({ error: "No JSON in response: " + text.slice(0, 200) }, { status: 500 });
     const parsed = JSON.parse(clean.slice(start, end + 1));
     return Response.json(parsed);
   } catch(e) {
