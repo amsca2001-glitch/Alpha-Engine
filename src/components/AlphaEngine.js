@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 
 function ScoreRing({ score }) {
   const r = 28, cx = 36, cy = 36;
@@ -25,6 +25,21 @@ function YoY({ val }) {
   return <span className={`text-xs font-bold font-mono ${pos ? "text-emerald-400" : neg ? "text-red-400" : "text-slate-400"}`}>{val}</span>;
 }
 
+function Signal({ val }) {
+  if (!val) return null;
+  const key = val.toLowerCase();
+  const cfg = {
+    strong: "bg-emerald-900 text-emerald-400 border border-emerald-700",
+    above: "bg-emerald-900 text-emerald-400 border border-emerald-700",
+    neutral: "bg-slate-800 text-slate-400 border border-slate-600",
+    inline: "bg-amber-900 text-amber-400 border border-amber-700",
+    weak: "bg-red-900 text-red-400 border border-red-700",
+    below: "bg-red-900 text-red-400 border border-red-700",
+  };
+  const cls = cfg[key] || cfg.neutral;
+  return <span className={`text-xs px-2 py-0.5 rounded font-bold ${cls}`}>{val}</span>;
+}
+
 function RecBadge({ rec }) {
   const cfg = { BUY: "bg-emerald-500 text-white", HOLD: "bg-amber-500 text-white", SELL: "bg-red-500 text-white" };
   return <span className={`px-3 py-1 rounded font-black text-sm tracking-widest ${cfg[rec] || cfg.HOLD}`}>{rec}</span>;
@@ -35,7 +50,7 @@ function Loader() {
     "Searching SEC filings...", "Pulling Yahoo Finance data...",
     "Reading earnings call transcript...", "Extracting RevPAR & ADR metrics...",
     "Scoring management sentiment...", "Analyzing 10-K risk factors...",
-    "Building investment thesis...", "Generating Alpha Brief..."
+    "Comparing to industry averages...", "Generating Alpha Brief..."
   ];
   const [step, setStep] = useState(0);
   useEffect(() => {
@@ -80,7 +95,8 @@ export default function AlphaEngine() {
         body: JSON.stringify({ ticker: sym })
       });
       const parsed = await res.json();
-      setData(parsed);
+      if (parsed.error) setError(parsed.error);
+      else setData(parsed);
     } catch (e) {
       setError("Could not generate brief. Try again or check the ticker.");
     }
@@ -93,25 +109,25 @@ export default function AlphaEngine() {
       fontFamily: "'DM Mono', 'Courier New', monospace"
     }}>
       {/* Header */}
-      <div className="grid-bg border-b border-slate-800">
+      <div className="border-b border-slate-800">
         <div className="max-w-5xl mx-auto px-4 py-6">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="syne text-2xl font-black text-white tracking-tight">
+              <h1 className="text-2xl font-black text-white tracking-tight">
                 HOSPITALITY <span className="text-emerald-400">ALPHA ENGINE</span>
               </h1>
-              <p className="text-slate-500 text-xs mt-1 font-mono">Scalable Investment Intelligence · Hospitality Sector</p>
+              <p className="text-slate-500 text-xs mt-1">Scalable Investment Intelligence · Hospitality Sector</p>
             </div>
-            <div className="text-right text-xs text-slate-600 font-mono">
+            <div className="text-right text-xs text-slate-600">
               <div>AI-POWERED</div>
               <div className="text-emerald-500">● LIVE</div>
             </div>
           </div>
           <div className="flex gap-3 items-stretch">
-            <div className="flex-1 card glow flex items-center gap-3 px-4 py-3">
-              <span className="text-emerald-400 text-lg font-black syne">$</span>
+            <div className="flex-1 bg-slate-900 border border-slate-700 rounded-lg flex items-center gap-3 px-4 py-3">
+              <span className="text-emerald-400 text-lg font-black">$</span>
               <input
-                className="ticker-input flex-1 text-white text-xl font-black syne uppercase placeholder-slate-700"
+                className="flex-1 bg-transparent text-white text-xl font-black uppercase placeholder-slate-700 outline-none"
                 placeholder="ENTER TICKER"
                 value={ticker}
                 onChange={e => setTicker(e.target.value.toUpperCase())}
@@ -122,8 +138,7 @@ export default function AlphaEngine() {
             <button
               onClick={() => analyze()}
               disabled={loading || !ticker}
-              className="px-6 rounded-lg font-black text-sm syne tracking-widest transition-all duration-200 disabled:opacity-30"
-              style={{ background: loading ? "#1e293b" : "linear-gradient(135deg, #16a34a, #15803d)", color: "white" }}
+              className="px-6 rounded-lg font-black text-sm tracking-widest transition-all duration-200 disabled:opacity-30 bg-emerald-600 hover:bg-emerald-500 text-white"
             >
               {loading ? "RUNNING..." : "ANALYZE →"}
             </button>
@@ -142,45 +157,66 @@ export default function AlphaEngine() {
 
       <div className="max-w-5xl mx-auto px-4 py-6">
         {!loading && !data && !error && (
-          <div className="text-center py-24 text-slate-700">
-            <div className="text-6xl mb-4 syne font-black text-slate-800">α</div>
+          <div className="text-center py-24">
+            <div className="text-6xl mb-4 font-black text-slate-800">α</div>
             <p className="text-slate-500 text-sm">Enter any hospitality ticker to generate a full Alpha Brief</p>
             <p className="text-slate-700 text-xs mt-2">MAR · HLT · ABNB · H · IHG · WH</p>
           </div>
         )}
         {loading && <Loader />}
-        {error && <div className="card p-6 text-center text-red-400 text-sm">{error}</div>}
+        {error && <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 text-center text-red-400 text-sm">{error}</div>}
+
         {data && !loading && (
           <div className="space-y-4">
-            {/* Header */}
-            <div className="card p-4 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center">
-                  <span className="syne font-black text-emerald-400 text-sm">{data.ticker}</span>
+
+            {/* Header Card */}
+            <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center flex-shrink-0">
+                    <span className="font-black text-emerald-400 text-xs">{data.ticker}</span>
+                  </div>
+                  <div>
+                    <h2 className="font-black text-white text-xl">{data.company}</h2>
+                    <p className="text-slate-500 text-xs">{data.ticker} · Hotels & Lodging · {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="syne font-black text-white text-xl">{data.company}</h2>
-                  <p className="text-slate-500 text-xs">{data.ticker} · Hotels & Lodging · {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
+                <div className="flex items-center gap-6 flex-shrink-0">
+                  {/* Share Price */}
+                  <div className="text-right">
+                    <div className="text-slate-500 text-xs mb-1 tracking-widest">SHARE PRICE</div>
+                    <div className="font-black text-white text-lg">{data.sharePrice || "—"}</div>
+                    <div className={`text-xs font-bold ${data.sharePriceChange?.startsWith("+") ? "text-emerald-400" : "text-red-400"}`}>
+                      {data.sharePriceChange || ""}
+                    </div>
+                  </div>
+                  <div className="w-px h-10 bg-slate-700" />
+                  <div className="text-right">
+                    <div className="text-slate-500 text-xs mb-1 tracking-widest">TARGET PRICE</div>
+                    <div className="font-black text-white text-lg">{data.targetPrice}</div>
+                  </div>
+                  <RecBadge rec={data.recommendation} />
                 </div>
               </div>
-              <div className="flex items-center gap-4">
-                <div className="text-right">
-                  <div className="text-slate-500 text-xs mb-1">TARGET PRICE</div>
-                  <div className="syne font-black text-white text-lg">{data.targetPrice}</div>
+
+              {/* Company Background */}
+              {data.background && (
+                <div className="mt-4 pt-4 border-t border-slate-800">
+                  <div className="text-emerald-400 text-xs font-bold tracking-widest mb-2">COMPANY BACKGROUND</div>
+                  <p className="text-slate-400 text-xs leading-relaxed">{data.background}</p>
                 </div>
-                <RecBadge rec={data.recommendation} />
-              </div>
+              )}
             </div>
 
             {/* Hook */}
-            <div className="card">
-              <div className="card-header">
+            <div className="bg-slate-900 border border-slate-800 rounded-lg">
+              <div className="border-b border-slate-800 px-4 py-2">
                 <span className="text-emerald-400 text-xs font-bold tracking-widest">THE HOOK — 3 REASONS THE MARKET MAY BE WRONG</span>
               </div>
               <div className="p-4 space-y-3">
                 {(data.hook || []).map((h, i) => (
                   <div key={i} className="flex gap-3">
-                    <div className="w-6 h-6 rounded-full bg-emerald-900 border border-emerald-600 flex-shrink-0 flex items-center justify-center mt-0.5">
+                    <div className="w-6 h-6 rounded-full bg-emerald-900 border border-emerald-700 flex-shrink-0 flex items-center justify-center mt-0.5">
                       <span className="text-emerald-400 text-xs font-black">{i + 1}</span>
                     </div>
                     <div>
@@ -193,48 +229,59 @@ export default function AlphaEngine() {
             </div>
 
             {/* KPI Table */}
-            <div className="card">
-              <div className="card-header">
-                <span className="text-emerald-400 text-xs font-bold tracking-widest">KPI DASHBOARD — UNIVERSAL & HOSPITALITY METRICS</span>
+            <div className="bg-slate-900 border border-slate-800 rounded-lg">
+              <div className="border-b border-slate-800 px-4 py-2">
+                <span className="text-emerald-400 text-xs font-bold tracking-widest">KPI DASHBOARD — GENERAL & HOSPITALITY METRICS</span>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="border-b border-slate-800">
-                      <th className="text-left px-4 py-2 text-slate-500 font-mono font-normal">METRIC</th>
-                      <th className="text-left px-4 py-2 text-slate-500 font-mono font-normal">VALUE</th>
-                      <th className="text-left px-4 py-2 text-slate-500 font-mono font-normal">YOY</th>
-                      <th className="text-left px-4 py-2 text-slate-500 font-mono font-normal">PEER / BENCHMARK</th>
+                      <th className="text-left px-4 py-2 text-slate-500 font-normal">METRIC</th>
+                      <th className="text-left px-4 py-2 text-slate-500 font-normal">VALUE</th>
+                      <th className="text-left px-4 py-2 text-slate-500 font-normal">YOY</th>
+                      <th className="text-left px-4 py-2 text-slate-500 font-normal">INDUSTRY AVG</th>
+                      <th className="text-left px-4 py-2 text-slate-500 font-normal">SIGNAL</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {[
-                      { label: "UNIVERSAL", color: "text-slate-400", items: data.universalKPIs || [] },
-                      { label: "HOSPITALITY", color: "text-emerald-400", items: data.hospitalityKPIs || [] }
-                    ].map(section => [
-                      <tr key={section.label} className="border-t border-slate-800">
-                        <td colSpan={4} className="px-4 py-1.5">
-                          <span className={`text-xs font-bold tracking-widest ${section.color}`}>▸ {section.label}</span>
-                        </td>
-                      </tr>,
-                      ...section.items.map((row, i) => (
-                        <tr key={`${section.label}-${i}`} className="border-b border-slate-900 transition-colors">
-                          <td className="px-4 py-2 text-slate-300 font-mono">{row.metric}</td>
-                          <td className="px-4 py-2 text-white font-bold">{row.value}</td>
-                          <td className="px-4 py-2"><YoY val={row.yoy} /></td>
-                          <td className="px-4 py-2 text-slate-500">{row.bench}</td>
-                        </tr>
-                      ))
-                    ])}
+                    <tr className="border-t border-slate-800 bg-slate-950">
+                      <td colSpan={5} className="px-4 py-1.5">
+                        <span className="text-xs font-bold tracking-widest text-slate-400">▸ GENERAL KPIs</span>
+                      </td>
+                    </tr>
+                    {(data.generalKPIs || []).map((row, i) => (
+                      <tr key={i} className="border-b border-slate-900 hover:bg-slate-800 transition-colors">
+                        <td className="px-4 py-2.5 text-slate-300">{row.metric}</td>
+                        <td className="px-4 py-2.5 text-white font-bold">{row.value}</td>
+                        <td className="px-4 py-2.5"><YoY val={row.yoy} /></td>
+                        <td className="px-4 py-2.5 text-slate-500">{row.industryAvg}</td>
+                        <td className="px-4 py-2.5"><Signal val={row.signal} /></td>
+                      </tr>
+                    ))}
+                    <tr className="border-t border-slate-800 bg-slate-950">
+                      <td colSpan={5} className="px-4 py-1.5">
+                        <span className="text-xs font-bold tracking-widest text-emerald-500">▸ HOSPITALITY-SPECIFIC KPIs</span>
+                      </td>
+                    </tr>
+                    {(data.hospitalityKPIs || []).map((row, i) => (
+                      <tr key={i} className="border-b border-slate-900 hover:bg-slate-800 transition-colors">
+                        <td className="px-4 py-2.5 text-slate-300">{row.metric}</td>
+                        <td className="px-4 py-2.5 text-white font-bold">{row.value}</td>
+                        <td className="px-4 py-2.5"><YoY val={row.yoy} /></td>
+                        <td className="px-4 py-2.5 text-slate-500">{row.industryAvg}</td>
+                        <td className="px-4 py-2.5"><Signal val={row.signal} /></td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
             </div>
 
-            {/* AI Insight + Risk */}
+            {/* Sentiment + Risk */}
             <div className="grid grid-cols-3 gap-4">
-              <div className="col-span-2 card">
-                <div className="card-header">
+              <div className="col-span-2 bg-slate-900 border border-slate-800 rounded-lg">
+                <div className="border-b border-slate-800 px-4 py-2">
                   <span className="text-emerald-400 text-xs font-bold tracking-widest">AI INSIGHT — MANAGEMENT SENTIMENT ANALYSIS</span>
                 </div>
                 <div className="p-4 flex gap-5">
@@ -263,8 +310,8 @@ export default function AlphaEngine() {
                   </div>
                 </div>
               </div>
-              <div className="card">
-                <div className="card-header">
+              <div className="bg-slate-900 border border-slate-800 rounded-lg">
+                <div className="border-b border-slate-800 px-4 py-2">
                   <span className="text-emerald-400 text-xs font-bold tracking-widest">RISK TRAFFIC LIGHT</span>
                 </div>
                 <div className="p-4 space-y-3 text-xs">
@@ -286,8 +333,8 @@ export default function AlphaEngine() {
             </div>
 
             {/* Trade Killers */}
-            <div className="card">
-              <div className="card-header" style={{ background: "rgba(120,53,15,0.4)" }}>
+            <div className="bg-slate-900 border border-slate-800 rounded-lg">
+              <div className="border-b border-slate-800 px-4 py-2" style={{ background: "rgba(120,53,15,0.3)" }}>
                 <span className="text-orange-400 text-xs font-bold tracking-widest">WHAT KILLS THIS TRADE — TOP 3 RISKS</span>
               </div>
               <div className="p-4 grid grid-cols-3 gap-4">
@@ -305,8 +352,8 @@ export default function AlphaEngine() {
               </div>
             </div>
 
-            {/* Footer */}
-            <div className="text-slate-700 text-xs font-mono border-t border-slate-900 pt-3">
+            {/* Sources */}
+            <div className="text-slate-700 text-xs border-t border-slate-900 pt-3">
               <p><span className="text-slate-600">SOURCES:</span> {data.sources}</p>
               <p className="mt-1">For informational purposes only. Not investment advice. AI-generated — verify critical figures before use.</p>
             </div>
