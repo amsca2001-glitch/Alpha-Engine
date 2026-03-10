@@ -1,18 +1,50 @@
 const SYSTEM_PROMPT = `You are an elite equity research analyst specializing in the hospitality sector. Search the web for real current data and produce a standardized investment brief.
 
-UNIVERSAL KPIs: Search Yahoo Finance, SEC filings for: Revenue Growth YoY, EBITDA and margin, Net Profit Margin, Debt-to-Equity, Free Cash Flow.
+Respond ONLY with a valid JSON object, no markdown, no backticks, no citation tags anywhere:
 
-HOSPITALITY KPIs: Search earnings releases for: RevPAR quarterly and full year YoY, Occupancy Rate, ADR, Net Unit Growth.
-
-CRITICAL RULES:
-- Return ONLY a valid JSON object
-- No markdown, no backticks, no preamble
-- No citation tags anywhere - not inside strings, not in values
-- Always include exactly 3 tradeKillers
-- Write clean plain text in all string values
-
-JSON format:
-{"company":"Full Name","ticker":"TICKER","recommendation":"BUY","targetPrice":"$XXX-$XXX","sentimentScore":7.5,"sentimentLabel":"Confident","sentimentBullish":7,"sentimentHedges":3,"hook":[{"title":"Title 1","body":"Plain text explanation no cite tags"},{"title":"Title 2","body":"Plain text explanation"},{"title":"Title 3","body":"Plain text explanation"}],"universalKPIs":[{"metric":"Total Revenue","value":"$XXB","yoy":"+X%","bench":"vs peers"},{"metric":"EBITDA Margin","value":"X%","yoy":"+X%","bench":"vs 25-35% avg"},{"metric":"Net Profit Margin","value":"X%","yoy":"+X%","bench":"vs peers"},{"metric":"Debt-to-Equity","value":"X.X","yoy":"stable","bench":"flag if above 2.0"},{"metric":"Free Cash Flow","value":"$XXB","yoy":"+X%","bench":"FCF yield"}],"hospitalityKPIs":[{"metric":"RevPAR Growth FY","value":"+X%","yoy":"vs prior year","bench":"industry avg"},{"metric":"Occupancy Rate","value":"X%","yoy":"+X ppt","bench":"60-75% healthy"},{"metric":"ADR","value":"$XXX","yoy":"+X%","bench":"pricing power"},{"metric":"Net Unit Growth","value":"+X%","yoy":"rooms added","bench":"vs peers"}],"sentimentPoints":["bullish point 1","bullish point 2","bullish point 3","bullish point 4"],"sentimentHedgePoints":["hedge point 1","hedge point 2"],"risks":{"red":{"count":2,"items":"Risk A; Risk B"},"yellow":{"count":4,"items":"Risk C, Risk D, Risk E, Risk F"},"green":{"count":3,"items":"Risk G, Risk H, Risk I"}},"tradeKillers":[{"title":"Risk One","prob":"20-25%","impact":"HIGH","desc":"Plain text 2 sentence description"},{"title":"Risk Two","prob":"15-20%","impact":"MEDIUM","desc":"Plain text 2 sentence description"},{"title":"Risk Three","prob":"10-15%","impact":"SEVERE","desc":"Plain text 2 sentence description"}],"sources":"Yahoo Finance, SEC EDGAR, company earnings release"}`;
+{
+  "company": "Full Company Name",
+  "ticker": "TICKER",
+  "recommendation": "BUY",
+  "targetPrice": "$XXX-$XXX",
+  "sharePrice": "$XXX.XX",
+  "sharePriceChange": "+X.X% today",
+  "background": "2-3 sentence company background: founded, headquarters, business model, scale, what makes them unique in hospitality.",
+  "sentimentScore": 7.5,
+  "sentimentLabel": "Confident",
+  "sentimentBullish": 6,
+  "sentimentHedges": 3,
+  "hook": [
+    {"title": "Hook Title 1", "body": "2 sentence explanation of non-consensus insight"},
+    {"title": "Hook Title 2", "body": "2 sentence explanation"},
+    {"title": "Hook Title 3", "body": "2 sentence explanation"}
+  ],
+  "generalKPIs": [
+    {"metric": "Revenue Growth (YoY)", "value": "$XXB (+X%)", "yoy": "+X%", "industryAvg": "Hospitality avg: +X%", "signal": "Strong"},
+    {"metric": "EBITDA & Margin", "value": "$XXB (XX%)", "yoy": "+X%", "industryAvg": "Sector avg: 25-35%", "signal": "Strong"},
+    {"metric": "Net Profit Margin", "value": "X%", "yoy": "+X%", "industryAvg": "Peers avg: X%", "signal": "Neutral"},
+    {"metric": "Debt-to-Equity", "value": "X.X", "yoy": "stable", "industryAvg": "Flag if >2.0", "signal": "Neutral"}
+  ],
+  "hospitalityKPIs": [
+    {"metric": "RevPAR Growth (FY)", "value": "+X%", "yoy": "vs prior year", "industryAvg": "Industry avg: +X%", "signal": "Strong"},
+    {"metric": "Occupancy Rate", "value": "XX%", "yoy": "+X ppt", "industryAvg": "Healthy: 60-75%", "signal": "Strong"},
+    {"metric": "ADR (Avg Daily Rate)", "value": "$XXX", "yoy": "+X%", "industryAvg": "Segment avg: $XXX", "signal": "Strong"},
+    {"metric": "Net Unit Growth", "value": "+X%", "yoy": "rooms added", "industryAvg": "Peers avg: +X%", "signal": "Strong"}
+  ],
+  "sentimentPoints": ["bullish point 1", "bullish point 2", "bullish point 3", "bullish point 4"],
+  "sentimentHedgePoints": ["hedge 1", "hedge 2"],
+  "risks": {
+    "red": {"count": 2, "items": "Risk A; Risk B"},
+    "yellow": {"count": 4, "items": "Risk C, Risk D, Risk E, Risk F"},
+    "green": {"count": 3, "items": "Risk G, Risk H, Risk I"}
+  },
+  "tradeKillers": [
+    {"title": "Risk One", "prob": "20-25%", "impact": "HIGH", "desc": "2 sentence plain text description."},
+    {"title": "Risk Two", "prob": "15-20%", "impact": "MEDIUM", "desc": "2 sentence plain text description."},
+    {"title": "Risk Three", "prob": "10-15%", "impact": "SEVERE", "desc": "2 sentence plain text description."}
+  ],
+  "sources": "Yahoo Finance, SEC EDGAR, company earnings release, investor presentation"
+}`;
 
 export async function POST(req) {
   try {
@@ -37,7 +69,7 @@ export async function POST(req) {
         }],
         messages: [{
           role: "user",
-          content: `Analyze ${ticker}. Search for real data. Return ONLY clean JSON with no cite tags anywhere in any field.`
+          content: `Search the web and analyze hospitality company ticker: ${ticker}. Find the current share price, company background, and all KPI data. Return ONLY clean JSON with no cite tags anywhere.`
         }]
       })
     });
@@ -46,12 +78,7 @@ export async function POST(req) {
     if (data.error) return Response.json({ error: data.error.message }, { status: 500 });
 
     const rawText = data.content?.filter(b => b.type === "text").map(b => b.text).join("") || "";
-    const cleaned = rawText
-      .replace(/<cite[^>]*>/g, "")
-      .replace(/<\/cite>/g, "")
-      .replace(/\[\d+\]/g, "")
-      .trim();
-
+    const cleaned = rawText.replace(/<cite[^>]*>/g, "").replace(/<\/cite>/g, "").replace(/\[\d+\]/g, "").trim();
     const start = cleaned.indexOf("{");
     const end = cleaned.lastIndexOf("}");
     if (start === -1) return Response.json({ error: "No JSON: " + cleaned.slice(0, 200) }, { status: 500 });
